@@ -36,8 +36,10 @@ async function firebaseBackend() {
     createAccount: (email, pw) => A.createUserWithEmailAndPassword(auth, email, pw),
     signOut: () => A.signOut(auth),
     watch(name, cb) {
-      return F.onSnapshot(col(name), (snap) =>
-        cb(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      return F.onSnapshot(
+        col(name),
+        (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+        (err) => console.warn(`watch ${name}:`, err)
       );
     },
     add: (name, data) => F.addDoc(col(name), data),
