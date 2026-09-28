@@ -156,9 +156,10 @@ input:focus, textarea:focus { border-color: var(--accent); }
 }
 .add input[type="text"] { flex: 1; }
 .add input[type="date"] { flex: none; width: 9.5rem; }
+/* On phones, forms with a date picker put the text field on its own row. */
 @media (max-width: 420px) {
   .add { flex-wrap: wrap; }
-  .add input[type="text"] { flex-basis: 100%; }
+  .add input[type="text"]:not(:only-of-type) { flex-basis: 100%; }
   .add input[type="date"] { flex: 1; width: auto; }
 }
 
