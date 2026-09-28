@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dashboard</title>
+  <meta name="theme-color" content="#0f1115">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Sign-in screen (Firebase mode only) -->
+  <section id="auth" class="auth" hidden>
+    <div class="card auth-card">
+      <h1>Dashboard</h1>
+      <p class="muted">Sign in to sync your tasks across devices.</p>
+      <button id="google-btn" class="btn btn-primary btn-block" type="button">Continue with Google</button>
+      <div class="divider"><span>or</span></div>
+      <form id="email-form" class="stack">
+        <input id="email" type="email" placeholder="Email" autocomplete="email" required>
+        <input id="password" type="password" placeholder="Password (6+ characters)" autocomplete="current-password" minlength="6" required>
+        <div class="row">
+          <button class="btn btn-primary" type="submit">Sign in</button>
+          <button id="create-btn" class="btn" type="button">Create account</button>
+        </div>
+      </form>
+      <p id="auth-error" class="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- Dashboard -->
+  <main id="app" class="app" hidden>
+    <header class="top">
+      <div class="ring" id="ring" role="img" aria-label="Day progress">
+        <svg viewBox="0 0 72 72" aria-hidden="true">
+          <circle class="ring-track" cx="36" cy="36" r="30"></circle>
+          <circle class="ring-fill" id="ring-fill" cx="36" cy="36" r="30"></circle>
+        </svg>
+        <span id="ring-pct" class="ring-pct">0%</span>
+      </div>
+      <div class="date">
+        <div id="date-weekday" class="date-weekday"></div>
+        <div id="date-full" class="date-full muted"></div>
+      </div>
+      <button id="signout-btn" class="btn btn-ghost btn-small" type="button" hidden>Sign out</button>
+      <span id="local-pill" class="pill" hidden title="Add your Firebase config to sync across devices">Local mode</span>
+    </header>
+
+    <div class="grid">
+      <!-- Tasks -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Tasks</h2>
+          <div class="seg" role="tablist" aria-label="Task view">
+            <button type="button" role="tab" data-view="today">Today</button>
+            <button type="button" role="tab" data-view="all">All</button>
+          </div>
+        </div>
+        <form class="add" data-add="tasks">
+          <input name="text" type="text" placeholder="Add a task…" autocomplete="off" required>
+          <input name="due" type="date" required aria-label="Due date">
+          <button class="btn btn-primary btn-add" type="submit" aria-label="Add task">+</button>
+        </form>
+        <ul id="tasks-list" class="list"></ul>
+        <div class="card-foot">
+          <span id="tasks-count" class="muted small"></span>
+          <button type="button" class="btn btn-ghost btn-small" data-clear="tasks">Clear completed</button>
+        </div>
+      </section>
+
+      <!-- Daily -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Daily</h2>
+          <span id="daily-count" class="muted small"></span>
+        </div>
+        <form class="add" data-add="daily">
+          <input name="text" type="text" placeholder="Add a daily task…" autocomplete="off" required>
+          <button class="btn btn-primary btn-add" type="submit" aria-label="Add daily task">+</button>
+        </form>
+        <div class="bar"><div id="daily-bar" class="bar-fill"></div></div>
+        <ul id="daily-list" class="list"></ul>
+      </section>
+
+      <!-- Weekly -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Weekly goals</h2>
+          <span id="week-label" class="muted small"></span>
+        </div>
+        <form class="add" data-add="weekly">
+          <input name="text" type="text" placeholder="Add a goal for this week…" autocomplete="off" required>
+          <button class="btn btn-primary btn-add" type="submit" aria-label="Add weekly goal">+</button>
+        </form>
+        <ul id="weekly-list" class="list"></ul>
+        <div class="card-foot">
+          <span id="weekly-count" class="muted small"></span>
+          <button type="button" class="btn btn-ghost btn-small" data-clear="weekly">Clear completed</button>
+        </div>
+        <label class="notes-label muted small" for="weekly-notes">Plans &amp; notes</label>
+        <textarea id="weekly-notes" class="notes" rows="5" placeholder="Plan ahead for the week…"></textarea>
+        <div id="notes-status" class="muted small notes-status"></div>
+      </section>
+
+      <!-- Long-term -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Long-term goals</h2>
+        </div>
+        <form class="add" data-add="longterm">
+          <input name="text" type="text" placeholder="Add a long-term goal…" autocomplete="off" required>
+          <input name="due" type="date" required aria-label="Target date">
+          <button class="btn btn-primary btn-add" type="submit" aria-label="Add long-term goal">+</button>
+        </form>
+        <ul id="longterm-list" class="list"></ul>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden>
+    <span id="toast-msg"></span>
+    <button id="toast-undo" class="btn btn-ghost btn-small" type="button">Undo</button>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
