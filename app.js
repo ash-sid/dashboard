@@ -319,6 +319,33 @@ sections.meta = {
   },
 };
 
+/* ---------- Long-term goals ---------- */
+function countdown(due) {
+  const d = daysBetween(today, due);
+  if (d < 0) return overdueText(due);
+  if (d === 0) return 'due today';
+  if (d < 60) return `in ${d} day${d === 1 ? '' : 's'}`;
+  if (d < 730) return `in ${Math.round(d / 30.44)} months`;
+  return `in ${Math.round(d / 365.25)} years`;
+}
+
+sections.longterm = {
+  newItem: (form) => ({ due: form.elements.due.value, done: false }),
+  toggle: (x) => db.update('longterm', x.id, { done: !x.done }),
+  render() {
+    renderList(
+      $('longterm-list'),
+      orderDated(data.longterm || []).map((x) => ({
+        ...x,
+        overdue: isOverdue(x),
+        meta: parseYmd(x.due).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+          + ' · ' + (x.done ? 'done' : countdown(x.due)),
+      })),
+      'Big things you’re working toward.'
+    );
+  },
+};
+
 /* ---------- Boot ---------- */
 async function boot() {
   renderHeader();
