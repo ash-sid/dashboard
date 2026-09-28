@@ -263,6 +263,62 @@ sections.daily = {
   },
 };
 
+/* ---------- Weekly goals + notes ---------- */
+function mondayOf(d) {
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+  return m;
+}
+
+sections.weekly = {
+  newItem: () => ({ done: false }),
+  toggle: (x) => db.update('weekly', x.id, { done: !x.done }),
+  render() {
+    const items = [...(data.weekly || [])].sort((a, b) => a.done - b.done || byCreated(a, b));
+    renderList($('weekly-list'), items, 'What do you want to get done this week?');
+    const monday = mondayOf(parseYmd(today));
+    $('week-label').textContent = 'Week of ' + monday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const done = items.filter((x) => x.done).length;
+    $('weekly-count').textContent = items.length ? `${done}/${items.length} done` : '';
+  },
+};
+
+const notesEl = $('weekly-notes');
+let notesTimer = null;
+let statusTimer;
+
+function setNotesStatus(text) {
+  $('notes-status').textContent = text;
+  clearTimeout(statusTimer);
+  if (text === 'Saved') statusTimer = setTimeout(() => ($('notes-status').textContent = ''), 2000);
+}
+
+function saveNotes() {
+  clearTimeout(notesTimer);
+  notesTimer = null;
+  // Firestore writes to its local cache right away and syncs later, so don't wait on the server.
+  db.set('meta', 'weeklyNotes', { text: notesEl.value, updatedAt: Date.now() })
+    .catch(() => setNotesStatus('Couldn’t save'));
+  setNotesStatus('Saved');
+}
+
+notesEl.addEventListener('input', () => {
+  setNotesStatus('Saving…');
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(saveNotes, 600);
+});
+notesEl.addEventListener('blur', () => { if (notesTimer) saveNotes(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && notesTimer) saveNotes(); });
+
+sections.meta = {
+  render() {
+    // Don't overwrite what you're typing with a synced copy.
+    if (document.activeElement === notesEl || notesTimer) return;
+    const doc = (data.meta || []).find((x) => x.id === 'weeklyNotes');
+    notesEl.value = doc?.text || '';
+  },
+};
+
 /* ---------- Boot ---------- */
 async function boot() {
   renderHeader();
