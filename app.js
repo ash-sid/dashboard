@@ -92,6 +92,158 @@ function watchAll() {
   );
 }
 
+/* ---------- Shared list helpers ---------- */
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const daysBetween = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 86_400_000);
+const byCreated = (a, b) => (a.createdAt || 0) - (b.createdAt || 0);
+const byDue = (a, b) => a.due.localeCompare(b.due) || byCreated(a, b);
+const isOverdue = (x) => !x.done && x.due < today;
+
+const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function itemHTML({ id, text, meta, done, overdue }) {
+  return `<li class="item${done ? ' done' : ''}${overdue ? ' overdue' : ''}" data-id="${esc(id)}">
+    <button type="button" class="check" role="checkbox" aria-checked="${!!done}" aria-label="Done">${CHECK_SVG}</button>
+    <div class="item-body">
+      <div class="item-text">${esc(text)}</div>
+      ${meta ? `<div class="item-meta">${esc(meta)}</div>` : ''}
+    </div>
+    <button type="button" class="del" aria-label="Delete">×</button>
+  </li>`;
+}
+
+function renderList(ul, items, emptyText) {
+  ul.innerHTML = items.length
+    ? items.map(itemHTML).join('')
+    : `<li class="empty">${esc(emptyText)}</li>`;
+}
+
+// Overdue first (oldest first), then open items by due date, then completed ones.
+function orderDated(items) {
+  return [
+    ...items.filter(isOverdue).sort(byDue),
+    ...items.filter((x) => !x.done && !isOverdue(x)).sort(byDue),
+    ...items.filter((x) => x.done).sort(byDue),
+  ];
+}
+
+function friendlyDate(s) {
+  const d = daysBetween(today, s);
+  if (d === 0) return 'Today';
+  if (d === 1) return 'Tomorrow';
+  if (d === -1) return 'Yesterday';
+  const date = parseYmd(s);
+  const opts = { weekday: 'short', month: 'short', day: 'numeric' };
+  if (date.getFullYear() !== parseYmd(today).getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString(undefined, opts);
+}
+
+function overdueText(s) {
+  const n = daysBetween(s, today);
+  return `${n} day${n === 1 ? '' : 's'} overdue`;
+}
+
+/* Undo toast for deletes */
+let toastTimer;
+let undoFn = null;
+
+function showToast(msg, onUndo) {
+  $('toast-msg').textContent = msg;
+  undoFn = onUndo;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($('toast').hidden = true), 5000);
+}
+
+$('toast-undo').onclick = () => {
+  $('toast').hidden = true;
+  undoFn?.();
+  undoFn = null;
+};
+
+function removeWithUndo(name, items, msg) {
+  items.forEach((x) => db.remove(name, x.id));
+  showToast(msg, () => items.forEach(({ id, ...rest }) => db.set(name, id, rest)));
+}
+
+/* Add forms, checkboxes, delete and clear buttons for every list */
+document.addEventListener('submit', (e) => {
+  const form = e.target.closest('form[data-add]');
+  if (!form) return;
+  e.preventDefault();
+  const name = form.dataset.add;
+  const input = form.elements.text;
+  const text = input.value.trim();
+  if (!text) return;
+  db.add(name, { text, createdAt: Date.now(), ...sections[name].newItem(form) });
+  input.value = '';
+  input.focus();
+});
+
+document.addEventListener('click', (e) => {
+  const clear = e.target.closest('[data-clear]');
+  if (clear) {
+    const name = clear.dataset.clear;
+    const done = (data[name] || []).filter((x) => x.done);
+    if (done.length) removeWithUndo(name, done, `Cleared ${done.length} completed`);
+    return;
+  }
+
+  const btn = e.target.closest('.check, .del');
+  const li = btn?.closest('.item');
+  if (!li) return;
+  const name = li.closest('.list').id.replace(/-list$/, '');
+  const item = (data[name] || []).find((x) => x.id === li.dataset.id);
+  if (!item) return;
+  if (btn.classList.contains('check')) sections[name].toggle(item);
+  else removeWithUndo(name, [item], 'Deleted');
+});
+
+/* ---------- Tasks ---------- */
+let taskView = 'today';
+try { taskView = localStorage.getItem('dashboard-task-view') || 'today'; } catch {}
+
+document.querySelectorAll('[data-view]').forEach((b) => {
+  b.onclick = () => {
+    taskView = b.dataset.view;
+    try { localStorage.setItem('dashboard-task-view', taskView); } catch {}
+    sections.tasks.render();
+  };
+});
+
+sections.tasks = {
+  newItem: (form) => ({ due: form.elements.due.value || today, done: false, completedAt: null }),
+  toggle: (x) => db.update('tasks', x.id, { done: !x.done, completedAt: x.done ? null : Date.now() }),
+  render() {
+    const items = data.tasks || [];
+    // Overdue tasks show in both views; Today adds tasks due today, All adds everything.
+    const shown = taskView === 'today' ? items.filter((x) => x.due === today || isOverdue(x)) : items;
+    renderList(
+      $('tasks-list'),
+      orderDated(shown).map((x) => ({
+        ...x,
+        overdue: isOverdue(x),
+        meta: isOverdue(x)
+          ? `${friendlyDate(x.due)} · ${overdueText(x.due)}`
+          : taskView === 'all' ? friendlyDate(x.due) : '',
+      })),
+      taskView === 'today' ? 'Nothing due today.' : 'No tasks yet.'
+    );
+
+    document.querySelectorAll('[data-view]').forEach((b) =>
+      b.setAttribute('aria-selected', b.dataset.view === taskView));
+
+    const open = items.filter((x) => !x.done).length;
+    const overdue = items.filter(isOverdue).length;
+    $('tasks-count').textContent = `${open} open` + (overdue ? ` · ${overdue} overdue` : '');
+
+    // Keep the date picker on today (or later) after midnight or after adding a past-due task.
+    const due = document.querySelector('[data-add="tasks"] [name="due"]');
+    if (!due.value || due.value < today) due.value = today;
+  },
+};
+
 /* ---------- Boot ---------- */
 async function boot() {
   renderHeader();
