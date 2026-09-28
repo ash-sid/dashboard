@@ -348,6 +348,7 @@ sections.longterm = {
 
 /* ---------- Boot ---------- */
 async function boot() {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.warn);
   renderHeader();
   setInterval(tick, 30_000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
