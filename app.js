@@ -244,6 +244,25 @@ sections.tasks = {
   },
 };
 
+/* ---------- Daily ---------- */
+// A daily task counts as done only if it was checked today, so every task resets at midnight
+// without anything having to be written.
+sections.daily = {
+  newItem: () => ({ lastDoneDate: '' }),
+  toggle: (x) => db.update('daily', x.id, { lastDoneDate: x.lastDoneDate === today ? '' : today }),
+  render() {
+    const items = [...(data.daily || [])].sort(byCreated);
+    const done = items.filter((x) => x.lastDoneDate === today).length;
+    renderList(
+      $('daily-list'),
+      items.map((x) => ({ ...x, done: x.lastDoneDate === today })),
+      'Add things you do every day.'
+    );
+    $('daily-count').textContent = items.length ? `${done}/${items.length} done` : '';
+    $('daily-bar').style.width = items.length ? `${(done / items.length) * 100}%` : '0';
+  },
+};
+
 /* ---------- Boot ---------- */
 async function boot() {
   renderHeader();
